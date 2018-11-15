@@ -4,12 +4,13 @@ import com.twitter.concurrent.AsyncQueue
 import com.twitter.conversions.time._
 import com.twitter.finagle.{Service, Status}
 import com.twitter.finagle.stats.DefaultStatsReceiver
-import com.twitter.finagle.transport.{QueueTransport, Transport}
+import com.twitter.finagle.transport.QueueTransport
 import com.twitter.util.{Await, Future}
 import java.net.SocketAddress
+
+import io.netty.handler.codec.http.websocketx.TextWebSocketFrame
+import io.netty.handler.codec.http.{DefaultHttpRequest, HttpMethod, HttpVersion}
 import org.junit.runner.RunWith
-import org.jboss.netty.handler.codec.http._
-import org.jboss.netty.handler.codec.http.websocketx._
 import org.scalatest.FunSuite
 import org.scalatest.junit.JUnitRunner
 
@@ -39,7 +40,7 @@ class ServerDispatcherTest extends FunSuite {
     in.write((req, addr))
     in.write(new TextWebSocketFrame("hello"))
     val frame = Await.result(in.read(), 1.second)
-    assert(frame.asInstanceOf[TextWebSocketFrame].getText == "hello")
+    assert(frame.asInstanceOf[TextWebSocketFrame].text() == "hello")
     in.write("invalid")
     assert(out.status == Status.Closed)
   }

@@ -10,3 +10,4 @@ project/boot/
 project/plugins/project/
 
 sbt-launch.jar
+.idea

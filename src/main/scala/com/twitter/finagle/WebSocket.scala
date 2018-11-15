@@ -1,16 +1,14 @@
 package com.twitter.finagle
 
-import com.twitter.finagle.netty3._
-import com.twitter.finagle.param.{Label, ProtocolLibrary, Stats}
+import com.twitter.finagle.param.{ProtocolLibrary, Stats}
 import com.twitter.finagle.client.{StackClient, StdStackClient, Transporter}
 import com.twitter.finagle.server.{Listener, StackServer, StdStackServer}
-import com.twitter.finagle.websocket.{ClientDispatcher, Netty3, Request, Response, ServerDispatcher}
+import com.twitter.finagle.websocket._
 import com.twitter.finagle.transport.{Transport, TransportContext}
 import com.twitter.util.Closable
 import java.net.SocketAddress
 
 import com.twitter.finagle.ssl.client.SslClientConfiguration
-import org.jboss.netty.channel.Channel
 
 object Websocket extends Server[Request, Response] {
   case class Client(stack: Stack[ServiceFactory[Request, Response]] = StackClient.newStack,
@@ -21,7 +19,7 @@ object Websocket extends Server[Request, Response] {
     override protected type Context = TransportContext
 
     override protected def newTransporter(addr: SocketAddress): Transporter[In, Out, Context] =
-      Netty3.newTransporter(addr, params)
+      Netty4.newTransporter(addr, params)
 
     override protected def copy1(
       stack: Stack[ServiceFactory[Request, Response]] = this.stack,
@@ -53,7 +51,7 @@ object Websocket extends Server[Request, Response] {
     protected type Context = TransportContext
 
     protected def newListener(): Listener[In, Out, Context] =
-      Netty3.newListener(params)
+      Netty4.newListener(params)
 
     private[this] val statsReceiver = {
       val Stats(sr) = params[Stats]
