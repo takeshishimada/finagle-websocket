@@ -2,7 +2,7 @@ package com.twitter.finagle.websocket
 
 import java.net.{SocketAddress, URI}
 
-import com.twitter.finagle.Stack
+import com.twitter.finagle.{Address, Stack}
 import com.twitter.finagle.client.Transporter
 import com.twitter.finagle.websocket.Frame._
 import com.twitter.finagle.netty4._
@@ -21,19 +21,35 @@ private[finagle] object Netty4 {
     pipeline.addLast("ws", new WebSocketServerHandler)
   }
 
-  private def clientPipeline(addr: SocketAddress)(pipeline: ChannelPipeline): Unit = {
+  private def clientPipeline(handler: WebSocketClientHandler)(pipeline: ChannelPipeline): Unit = {
     pipeline.addLast("client", new HttpClientCodec())
     pipeline.addLast("aggregator", new HttpObjectAggregator(65536))
-    pipeline.addLast("ws", new WebSocketClientHandler)
+    pipeline.addLast("ws", handler)
   }
 
   def newListener(params: Stack.Params): Listener[Any, Any, TransportContext] =
     Netty4Listener(serverPipeline, params)
 
-  def newTransporter(
-    addr: SocketAddress,
-    params: Stack.Params): Transporter[Any, Any, TransportContext] =
-    Netty4Transporter.raw(clientPipeline(addr), addr, params)
+    def newTransporter(
+                        wsScheme: String,
+                        addr: SocketAddress,
+                        params: Stack.Params): Transporter[Any, Any, TransportContext] = {
+
+      val endpoint = params[Transporter.EndpointAddr].addr
+      val uri = endpoint match {
+        case Address.Inet(a, _) =>
+          Some(new URI(s"${wsScheme}://${a.getHostName}:${a.getPort}"))
+        case _ =>
+          None
+      }
+
+      val httpHeaders = new DefaultHttpHeaders()
+      val handShaker = WebSocketClientHandshakerFactory.newHandshaker(uri.get, WebSocketVersion.V13, null, false, httpHeaders, 1280000)
+      val handler = new WebSocketClientHandler(handShaker)
+
+      Netty4Transporter.raw(clientPipeline(handler), addr, params)
+
+    }
 
   def fromNetty(m: Any): Frame = m match {
     case text: TextWebSocketFrame => Text(text.text())

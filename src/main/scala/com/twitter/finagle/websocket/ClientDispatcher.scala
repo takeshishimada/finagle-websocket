@@ -11,10 +11,11 @@ import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame
 private[finagle] class ClientDispatcher(trans: Transport[Any, Any], statsReceiver: StatsReceiver)
   extends GenSerialClientDispatcher[Request, Response, Any, Any](trans, statsReceiver) {
 
-  import Netty4.{fromNetty, newHandshaker, toNetty}
+  import Netty4._
 
-  def this(trans: Transport[Any, Any]) =
+  def this(trans: Transport[Any, Any]) = {
     this(trans, NullStatsReceiver)
+  }
 
   private[this] def messages(): AsyncStream[Frame] =
     AsyncStream.fromFuture(trans.read()).flatMap {
@@ -23,16 +24,21 @@ private[finagle] class ClientDispatcher(trans: Transport[Any, Any], statsReceive
     }
 
   protected def dispatch(req: Request, p: Promise[Response]): Future[Unit] = {
-    p.setValue(Response(messages()))
 
-    val handshake = newHandshaker(req.uri, req.headers)
-    trans.write(handshake)
-      .rescue({ case exc => Future.exception(WriteException(exc))})
-      .before({
-        req.messages
-          .foreachF(msg => trans.write(toNetty(msg)))
-          .before(trans.write(new CloseWebSocketFrame))
-      })
+    // The first item is a HttpResponse.
+    trans.read().map(_ => {
+      p.setValue(Response(messages))
+      req.messages
+        .foreachF(msg =>
+          trans.write(toNetty(msg)
+          ))
+        .before(
+          trans.write(new CloseWebSocketFrame)
+        )
+        .rescue({ case exc =>
+          Future.exception(WriteException(exc))
+        })
+    })
 
   }
 }
