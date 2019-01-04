@@ -23,11 +23,10 @@ object Websocket extends Server[Request, Response] {
     override protected type Out = Any
     override protected type Context = TransportContext
 
-    var scheme: String = "ws"
-
     override protected def newTransporter(addr: SocketAddress): Transporter[In, Out, Context] = {
 
       val endpoint = params[Transporter.EndpointAddr].addr
+      val scheme = params[ProtocolLibrary].name
       val uri = endpoint match {
         case Address.Inet(a, _) =>
           Some(new URI(s"${scheme}://${a.getHostName}:${a.getPort}"))
